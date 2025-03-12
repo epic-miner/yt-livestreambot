@@ -8,14 +8,15 @@ TELEGRAM_BOT_TOKEN = "7260616953:AAE4Ht4aVoSWm4oH-UWUGkvIROdI_cpmEMg"
 # Initialize the bot
 bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
 
-# Dictionary to store user data
+# Dictionary to store user data (including FFmpeg processes)
 user_data = {}
 
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     bot.reply_to(message, "Welcome! To stream a video, follow these steps:\n"
                           "1. Send your YouTube stream key using /key <your_stream_key>.\n"
-                          "2. Send the video URL using /url <video_url>.")
+                          "2. Send the video URL using /url <video_url>.\n"
+                          "Use /stop to stop the live stream.")
 
 @bot.message_handler(commands=['key'])
 def set_stream_key(message):
@@ -82,15 +83,45 @@ def download_and_stream(chat_id, video_url):
     bot.send_message(chat_id, "Starting stream...")
 
     try:
-        subprocess.Popen(ffmpeg_command)  # Run FFmpeg in the background
+        # Start FFmpeg as a subprocess and store the process in user_data
+        ffmpeg_process = subprocess.Popen(ffmpeg_command)
+        user_data[chat_id]['ffmpeg_process'] = ffmpeg_process
         bot.send_message(chat_id, "Streaming started successfully!")
     except Exception as e:
         bot.send_message(chat_id, f"Failed to stream. Error: {str(e)}")
 
+@bot.message_handler(commands=['stop'])
+def stop_stream(message):
+    chat_id = message.chat.id
+    if chat_id in user_data and 'ffmpeg_process' in user_data[chat_id]:
+        ffmpeg_process = user_data[chat_id]['ffmpeg_process']
+        
+        # Terminate the FFmpeg process
+        ffmpeg_process.terminate()
+        ffmpeg_process.wait()  # Ensure the process has terminated
+        
+        # Remove the FFmpeg process from user_data
+        del user_data[chat_id]['ffmpeg_process']
+        
+        bot.reply_to(message, "Live stream stopped successfully!")
+    else:
+        bot.reply_to(message, "No active stream found. Use /url to start a new stream.")
+
 @bot.message_handler(commands=['reset'])
 def reset(message):
-    user_data.pop(message.chat.id, None)
-    bot.reply_to(message, "Your stream key and video URL have been reset.")
+    chat_id = message.chat.id
+    if chat_id in user_data:
+        if 'ffmpeg_process' in user_data[chat_id]:
+            # Stop the FFmpeg process if it's running
+            ffmpeg_process = user_data[chat_id]['ffmpeg_process']
+            ffmpeg_process.terminate()
+            ffmpeg_process.wait()
+            del user_data[chat_id]['ffmpeg_process']
+        
+        # Clear all user data
+        user_data.pop(chat_id, None)
+    
+    bot.reply_to(message, "Your stream key, video URL, and stream have been reset.")
 
 print("Bot is running...")
 bot.polling()
