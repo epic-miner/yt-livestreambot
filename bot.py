@@ -3,7 +3,7 @@ import subprocess
 import telebot
 
 # Replace this with your Telegram bot token
-TELEGRAM_BOT_TOKEN = "YOUR_BOT_TOKEN"
+TELEGRAM_BOT_TOKEN = "7260616953:AAE4Ht4aVoSWm4oH-UWUGkvIROdI_cpmEMg"
 
 # Initialize the bot
 bot = telebot.TeleBot(TELEGRAM_BOT_TOKEN)
